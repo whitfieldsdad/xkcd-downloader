@@ -5,7 +5,6 @@ from urllib.request import urlopen
 
 import concurrent.futures
 import logging
-import datetime
 import tempfile
 import json
 import os
@@ -24,12 +23,8 @@ def main(output_dir: str, force: bool = False):
         if not os.path.exists(path) or force:
             pending[url] = path
 
-    if not pending:
-        logger.info("All %d comics have been downloaded", len(urls))
-    else:
-        logger.info("Downloading %d/%d comics", len(pending), len(urls))
-        start_time = datetime.datetime.now()
-
+    if pending:        
+        logger.debug("Downloading %d comics", len(pending))
         with concurrent.futures.ThreadPoolExecutor() as executor:
             futures = []
             for url, path in pending.items():
@@ -39,20 +34,20 @@ def main(output_dir: str, force: bool = False):
             for future in concurrent.futures.as_completed(futures):
                 future.result()
 
-        end_time = datetime.datetime.now()
-        logger.info("Downloaded %d comics in %.2f seconds", len(pending), (end_time - start_time).total_seconds())
+        logger.debug("Downloaded %d comics", len(futures))
+    logger.debug("All %d comics have been downloaded", len(urls))
 
 
 def download(url: str, path: str):
-    logger.info("Downloading %s -> %s", url, path)
+    logger.debug("Downloading %s -> %s", url, path)
     try:
         with open(path, "wb") as file:
             file.write(urlopen(url).read())
     except HTTPError as e:
-        logger.error("Failed to download %s -> %s - %s", url, path, e)
+        logger.warning("Failed to download %s -> %s - %s", url, path, e)
         return
     else:
-        logger.info("Downloaded %s -> %s", url, path)
+        logger.debug("Downloaded %s -> %s", url, path)
 
 
 def iter_download_urls() -> Iterator[str]:
