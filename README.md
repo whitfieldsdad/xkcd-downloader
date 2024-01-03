@@ -14,5 +14,9 @@ It took me about 1.5 minutes to download 2,880 comics (~150 MB of PNG files) and
 To download every XKCD comic, simply point the script to a directory where you'd like to save the downloaded comics:
 
 ```bash
-python3 main.py -o data/
+curl https://raw.githubusercontent.com/whitfieldsdad/xkcd-downloader/main/main.py -s | python3 - -o xkcd/
 ```
+
+> ℹ️ The output directory will be created if it doesn't already exist.
+
+> ℹ️ A list of download URLs will be written to a file named `4b9e83bf-388d-4696-af5e-9d44786abccb/xkcd-download-urls.json` in the system's temporary directory to reduce how long it takes to download new comics.

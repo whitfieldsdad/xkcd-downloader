@@ -11,28 +11,35 @@ import os
 
 logger = logging.getLogger(__name__)
 
-CACHE_DIR = os.path.join(tempfile.gettempdir(), "xkcd")
-URL_CACHE_PATH = os.path.join(CACHE_DIR, "urls.json")
+CACHE_DIR = os.path.join(tempfile.gettempdir(), "4b9e83bf-388d-4696-af5e-9d44786abccb")
+URL_CACHE_PATH = os.path.join(CACHE_DIR, "xkcd-download-urls.json")
 
 
-def main(output_dir: str, force: bool = False):
+def main(output_dir: str, start: Optional[int] = None, end: Optional[int] = None, force: bool = False):
+    os.makedirs(output_dir, exist_ok=True)
+    
+    urls = list(iter_download_urls(start=start, end=end))
+    logger.info("Found %d comics", len(urls))
+
     pending = {}
-    urls = list(iter_download_urls())
     for url in urls:
         path = os.path.join(output_dir, os.path.basename(url))
         if not os.path.exists(path) or force:
             pending[url] = path
+        
+    if not pending:
+        logger.info("All %d comics have already been downloaded", len(urls))
+        return
 
-    if pending:        
-        logger.debug("Downloading %d comics", len(pending))
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            futures = []
-            for url, path in pending.items():
-                future = executor.submit(download, url=url, path=path)
-                futures.append(future)
-            
-            for future in concurrent.futures.as_completed(futures):
-                future.result()
+    logger.info("Downloading %d/%d comics", len(pending), len(urls))
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        futures = []
+        for url, path in pending.items():
+            future = executor.submit(download, url=url, path=path)
+            futures.append(future)
+        
+        for future in concurrent.futures.as_completed(futures):
+            future.result()
 
         logger.debug("Downloaded %d comics", len(futures))
     logger.debug("All %d comics have been downloaded", len(urls))
@@ -50,38 +57,45 @@ def download(url: str, path: str):
         logger.debug("Downloaded %s -> %s", url, path)
 
 
-def iter_download_urls() -> Iterator[str]:
-    def resolve_download_url(url: str) -> str:
-        return json.loads(urlopen(url).read())["img"]
-
-    total = get_total_comics()
-    cache = read_url_cache()
+def iter_download_urls(start: Optional[int] = None, end: Optional[int] = None) -> Iterator[str]:
+    url_cache = read_url_cache()
     with concurrent.futures.ThreadPoolExecutor() as executor:
         futures = {}
-        for i in range(1, total + 1):
-            api_url = f"https://xkcd.com/{i}/info.0.json"
-            img_url = cache.get(api_url)
-            if img_url:
-                cache[api_url] = img_url
-                yield img_url
+        for intermediate_url in _iter_intermediate_urls(start=start, end=end):
+            if intermediate_url in url_cache:
+                yield url_cache[intermediate_url]
             else:
-                future = executor.submit(resolve_download_url, api_url)
-                futures[future] = api_url
+                future = executor.submit(_resolve_intermediate_url, intermediate_url)
+                futures[future] = intermediate_url
         
-        if futures:
-            for future in concurrent.futures.as_completed(futures):
-                api_url = futures[future]
-                try:
-                    img_url = future.result()
-                except HTTPError as e:
-                    if e.code == 404:
-                        continue
-                    raise
-                else:
-                    cache[api_url] = img_url
-                    yield img_url
+        for future in concurrent.futures.as_completed(futures):
+            intermediate_url = futures[future]
+            try:
+                download_url = future.result()
+            except HTTPError as e:
+                if e.code == 404:
+                    continue
+                raise HTTPError(f"Failed to resolve intermediate URL: {intermediate_url}") from e
+            else:
+                url_cache[intermediate_url] = download_url
+                yield download_url
 
-    update_url_cache(cache)
+    update_url_cache(url_cache)
+
+
+def _iter_intermediate_urls(start: Optional[int] = None, end: Optional[int] = None) -> Iterator[str]:
+    total = get_total_comics()
+
+    start = start or 1
+    end = end or total
+    end = min(end, total)
+
+    for i in range(start, end + 1):
+        yield f"https://xkcd.com/{i}/info.0.json"
+
+
+def _resolve_intermediate_url(url: str) -> str:
+    return json.loads(urlopen(url).read())["img"]
 
 
 def get_total_comics() -> int:
@@ -121,6 +135,9 @@ if __name__ == "__main__":
         )
         parser.add_argument("-f", "--force", action="store_true", help="Force download")
         parser.add_argument('-v', '--verbose', action='store_true', help='Verbose logging')
+        parser.add_argument('--start', type=int, help='Start comic (e.g. 500)')
+        parser.add_argument('--end', type=int, help='End comic (e.g. 1000)')
+
         args = parser.parse_args()
         kwargs = vars(args)
         if kwargs.pop("verbose"):
