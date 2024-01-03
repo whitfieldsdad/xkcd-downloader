@@ -185,7 +185,7 @@ if __name__ == "__main__":
 
         parser = argparse.ArgumentParser(description="Dependency-less XKCD client")
         parser.add_argument("-v", "--verbose", action="store_true", help="Enable debug logging")
-        parser.add_argument('--output-dir', help='Download comics to this directory')
+        parser.add_argument('-o', '--output-dir', dest='output_dir', help='Output directory')
         parser.add_argument('--force', action='store_true', help='Force download')
         parser.add_argument('-n', '-num', type=int, help='Lookup a comic')
         parser.add_argument('-k', '--by', dest='by', choices=BY, help='Key to use when naming downloaded files')
