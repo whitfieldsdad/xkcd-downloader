@@ -1,7 +1,7 @@
 import dataclasses
 import os
 import sys
-from typing import Iterator, Optional
+from typing import Any, Iterator, Optional
 from urllib.error import HTTPError
 from urllib.request import urlopen
 
@@ -14,9 +14,8 @@ import os
 logger = logging.getLogger(__name__)
 
 BY = {'title', 'safe_title', 'alt', 'img', 'date', 'num'}
-BY |= {'safe-title'}
-
 BY_DEFAULT = 'num'
+
 
 def download_comics(output_dir: str, by: Optional[str] = BY_DEFAULT, force: bool = False):
     with concurrent.futures.ThreadPoolExecutor() as executor:
@@ -122,7 +121,7 @@ def parse_comic(meta: dict) -> dict:
         'year': year,
         'month': month,
         'day': day,
-        'date': datetime.datetime(year=year, month=month, day=day),
+        'date': datetime.date(year=year, month=month, day=day),
     })
     return meta
 
@@ -146,26 +145,38 @@ if __name__ == "__main__":
                 return super().default(o)
 
 
-    def main(output_dir: Optional[str] = None, by: Optional[str] = BY_DEFAULT, n: Optional[int] = None, force: bool = False):
+    def main(output_dir: Optional[str], by: Optional[str], n: Optional[int], force: bool):
         if n:
             if output_dir:
                 download_comic(output_dir=output_dir, by=by, n=n, force=force)
             else:
                 comic = get_comic(n)
                 if comic:
-                    print_comic(comic)
+                    if by:
+                        print(comic[by])
+                    else:
+                        print_value(comic)
                 else:
                     sys.exit(1)
         else:
             if output_dir:
                 download_comics(output_dir=output_dir, by=by, force=force)
             else:
-                for comic in iter_comics():
-                    print_comic(comic)
+                for value in iter_comics():
+                    if by:
+                        value = value[by]
+                    print_value(value)
 
-    def print_comic(comic: dict):
-        blob = json.dumps(comic, indent=2, cls=JSONEncoder)
-        print(blob)
+
+    def print_value(value: Any):
+        if isinstance(value, datetime.date):
+            value = value.isoformat()
+        elif isinstance(value, datetime.datetime):
+            value = value.date().isoformat()
+        elif isinstance(value, dict):
+            value = json.dumps(value, indent=2, cls=JSONEncoder)
+        print(value)
+
 
     def cli():
         import argparse
@@ -177,7 +188,7 @@ if __name__ == "__main__":
         parser.add_argument('--output-dir', help='Download comics to this directory')
         parser.add_argument('--force', action='store_true', help='Force download')
         parser.add_argument('-n', '-num', type=int, help='Lookup a comic')
-        parser.add_argument('-k', '--by', dest='by', choices=BY, default=BY_DEFAULT, help='Key to use when naming downloaded files')
+        parser.add_argument('-k', '--by', dest='by', choices=BY, help='Key to use when naming downloaded files')
         args = parser.parse_args()
         kwargs = vars(args)
         if kwargs.pop("verbose"):
@@ -185,4 +196,5 @@ if __name__ == "__main__":
         
         main(**kwargs)
     
+
     cli()
