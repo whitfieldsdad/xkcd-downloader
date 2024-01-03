@@ -1,4 +1,5 @@
 import dataclasses
+import itertools
 import os
 import sys
 from typing import Any, Iterator, Optional
@@ -13,107 +14,66 @@ import os
 
 logger = logging.getLogger(__name__)
 
-BY = {'title', 'safe_title', 'alt', 'img', 'date', 'num'}
-BY_DEFAULT = 'num'
 
+@dataclasses.dataclass()
+class Client:
+    force: bool = False
 
-def download_comics(output_dir: str, by: Optional[str] = BY_DEFAULT, force: bool = False):
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        futures = []
-        total = get_total_comics()
-        for n in range(1, total + 1):
-            if n == 404:
-                continue
+    def download_comics(self, output_dir: str, limit: Optional[int] = None):
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            futures = []
+            for comic in self.iter_comics(limit=limit):
+                future = executor.submit(self.download_comic_by_number, output_dir=output_dir, num=comic['num'])
+                futures.append(future)
 
-            future = executor.submit(download_comic, output_dir=output_dir, by=by, n=n, force=force)
-            futures.append(future)
-            
-        for future in concurrent.futures.as_completed(futures):
-            future.result()
+            for future in concurrent.futures.as_completed(futures):
+                future.result()
 
+    def download_comic_by_number(self, output_dir: str, num: int):
+        comic = self.get_comic_meta(num)
+        if comic:
+            path = self.get_output_path(output_dir, num)
+            if not os.path.exists(path) or self.force:
+                download_file(comic['img'], path)
+        
+    def get_output_path(self, output_dir: str, num: int) -> str:
+        comic = self.get_comic_meta(num)
+        if not comic:
+            raise KeyError(f"Comic #{num} not found")
 
-def download_comic(output_dir: str, n: int, force: bool = False, by: Optional[str] = BY_DEFAULT):
-    comic = get_comic(n)
-    if not comic:
-        return
-    
-    url = comic['img']
-    path = get_output_path(output_dir=output_dir, comic=comic, by=by)
+        img = comic['img']
+        ext = os.path.splitext(img)[1]
+        filename = f'{num}{ext}'
+        return os.path.join(output_dir, filename)
 
-    os.makedirs(output_dir, exist_ok=True)
-    if not os.path.exists(path) or force:
+    def iter_comics(self, limit: Optional[int] = None) -> Iterator[dict]:
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            futures = []
+            total = self.get_total_comics()
+            for n in itertools.islice(range(1, total + 1), limit):
+                future = executor.submit(self.get_comic_meta, n)
+                futures.append(future)
+
+            for future in concurrent.futures.as_completed(futures):
+                comic = future.result()
+                if comic:
+                    yield comic
+
+    def get_comic_meta(self, num: Optional[int] = None) -> Optional[dict]:
+        num = num or self.get_total_comics()
         try:
-            logger.info("Downloading %s -> %s", url, path)
-            with open(path, "wb") as file:
-                file.write(urlopen(url).read())
+            meta = json.loads(urlopen(f"https://xkcd.com/{num}/info.0.json").read())
         except HTTPError as e:
             if e.code == 404:
-                return
-            else:
-                logger.warning("Failed to download %s -> %s - %s", url, path, e)
-    else:
-        logger.debug("Skipping %s -> %s", url, path)
-        
-    
-def get_output_path(output_dir: str, comic: dict, by: Optional[str] = BY_DEFAULT) -> str:
-    filename = get_output_filename(comic, by=by)
-    return os.path.join(output_dir, filename)
+                return None
+            raise HTTPError(f"Failed to lookup comic #{num}") from e
+        return parse_comic_meta(meta)
+
+    def get_total_comics(self) -> int:
+        return json.loads(urlopen("https://xkcd.com/info.0.json").read())['num']
 
 
-def get_output_filename(comic: dict, by: Optional[str] = BY_DEFAULT) -> str:
-    path = comic['img']
-    ext = os.path.splitext(path)[1]
-
-    if by:
-        by = by.lower()
-        by = by.replace('-', '_')
-
-        value = comic[by]
-        if isinstance(value, str):
-            value = sanitize_filename(value)
-
-        filename = f"{value}{ext}"
-    else:
-        n = comic['num']
-        filename = f'{comic[n]}{ext}'
-    return filename
-
-
-def sanitize_filename(filename: str) -> str:
-    for t in ['\'', '"', ' ', '\t', '\n']:
-        filename = filename.replace(t, '')
-    
-    if '/' in filename:
-        filename = filename.replace('/', '-')
-    return filename
-
-
-def iter_comics() -> Iterator[dict]:
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        futures = []
-        total = get_total_comics()
-        for n in range(1, total + 1):
-            future = executor.submit(get_comic, n)
-            futures.append(future)
-
-        for future in concurrent.futures.as_completed(futures):
-            comic = future.result()
-            if comic:
-                yield comic
-
-
-def get_comic(n: Optional[int] = None) -> Optional[dict]:
-    n = n or get_total_comics()
-    try:
-        meta = json.loads(urlopen(f"https://xkcd.com/{n}/info.0.json").read())
-    except HTTPError as e:
-        if e.code == 404:
-            return None
-        raise HTTPError(f"Failed to lookup comic #{n}") from e
-    return parse_comic(meta)
-
-
-def parse_comic(meta: dict) -> dict:
+def parse_comic_meta(meta: dict) -> dict:
     year = int(meta["year"])
     month = int(meta["month"])
     day = int(meta["day"])
@@ -126,8 +86,16 @@ def parse_comic(meta: dict) -> dict:
     return meta
 
 
-def get_total_comics() -> int:
-    return json.loads(urlopen("https://xkcd.com/info.0.json").read())['num']
+def download_file(url: str, path: str):
+    try:
+        logger.info("Downloading %s -> %s", url, path)
+        with open(path, "wb") as file:
+            file.write(urlopen(url).read())
+    except HTTPError as e:
+        if e.code == 404:
+            return
+        else:
+            logger.warning("Failed to download %s -> %s - %s", url, path, e)
 
 
 if __name__ == "__main__":
@@ -144,37 +112,41 @@ if __name__ == "__main__":
             else:
                 return super().default(o)
 
-
-    def main(output_dir: Optional[str], by: Optional[str], n: Optional[int], force: bool):
-        if n:
-            if output_dir:
-                download_comic(output_dir=output_dir, by=by, n=n, force=force)
+    def main(output_dir: Optional[str], num: Optional[int], force: bool, download: bool, sparse_output: bool, latest: bool, limit: Optional[int]):
+        client = Client(force=force)
+        
+        output_dir = os.getcwd() if download and output_dir is None else output_dir
+        if output_dir:
+            if latest:
+                num = client.get_total_comics()
+            if num:
+                client.download_comic_by_number(output_dir=output_dir, num=num)
             else:
-                comic = get_comic(n)
+                client.download_comics(output_dir=output_dir, limit=limit)
+        else:
+            if latest:
+                num = client.get_total_comics()
+
+            if num:
+                comic = client.get_comic_meta(num)
                 if comic:
-                    if by:
-                        print(comic[by])
-                    else:
-                        print_value(comic)
+                    print_value(comic, sparse_output=sparse_output)
                 else:
                     sys.exit(1)
-        else:
-            if output_dir:
-                download_comics(output_dir=output_dir, by=by, force=force)
             else:
-                for value in iter_comics():
-                    if by:
-                        value = value[by]
-                    print_value(value)
+                for value in client.iter_comics(limit=limit):
+                    print_value(value, sparse_output=sparse_output)
+                
 
-
-    def print_value(value: Any):
+    def print_value(value: Any, sparse_output: bool):
         if isinstance(value, datetime.date):
             value = value.isoformat()
         elif isinstance(value, datetime.datetime):
             value = value.date().isoformat()
         elif isinstance(value, dict):
-            value = json.dumps(value, indent=2, cls=JSONEncoder)
+            if sparse_output:
+                value = {k: v for k, v in value.items() if v}
+            value = json.dumps(value, cls=JSONEncoder)
         print(value)
 
 
@@ -185,10 +157,14 @@ if __name__ == "__main__":
 
         parser = argparse.ArgumentParser(description="Dependency-less XKCD client")
         parser.add_argument("-v", "--verbose", action="store_true", help="Enable debug logging")
-        parser.add_argument('-o', '--output-dir', dest='output_dir', help='Output directory')
-        parser.add_argument('--force', action='store_true', help='Force download')
-        parser.add_argument('-n', '-num', type=int, help='Lookup a comic')
-        parser.add_argument('-k', '--by', dest='by', choices=BY, help='Key to use when naming downloaded files')
+        parser.add_argument('-o', '--output-dir', dest='output_dir', help='If provided, download comics to this directory')
+        parser.add_argument('-f', '--force', action='store_true', help='Force re-download')
+        parser.add_argument('-n', '--num', type=int, help='Comic # (e.g. 1234)')
+        parser.add_argument('--latest', action='store_true', help='Get latest comic')
+        parser.add_argument('--limit', type=int, help='Limit number of comics to download')
+        parser.add_argument('--sparse-output', action='store_true', help='Drop empty JSON fields')
+        parser.add_argument('--download', action='store_true', help='Download the comic')
+
         args = parser.parse_args()
         kwargs = vars(args)
         if kwargs.pop("verbose"):
@@ -196,5 +172,4 @@ if __name__ == "__main__":
         
         main(**kwargs)
     
-
     cli()
