@@ -1,148 +1,188 @@
+import dataclasses
 import os
+import sys
 from typing import Iterator, Optional
 from urllib.error import HTTPError
 from urllib.request import urlopen
 
-import concurrent.futures
 import logging
-import tempfile
+import datetime
+import concurrent.futures
 import json
 import os
 
 logger = logging.getLogger(__name__)
 
-CACHE_DIR = os.path.join(tempfile.gettempdir(), "4b9e83bf-388d-4696-af5e-9d44786abccb")
-URL_CACHE_PATH = os.path.join(CACHE_DIR, "xkcd-download-urls.json")
+BY = {'title', 'safe_title', 'alt', 'img', 'date', 'num'}
+BY |= {'safe-title'}
 
+BY_DEFAULT = 'num'
 
-def main(output_dir: str, start: Optional[int] = None, end: Optional[int] = None, force: bool = False):
-    os.makedirs(output_dir, exist_ok=True)
-    
-    urls = list(iter_download_urls(start=start, end=end))
-    logger.info("Found %d comics", len(urls))
-
-    pending = {}
-    for url in urls:
-        path = os.path.join(output_dir, os.path.basename(url))
-        if not os.path.exists(path) or force:
-            pending[url] = path
-        
-    if not pending:
-        logger.info("All %d comics have already been downloaded", len(urls))
-        return
-
-    logger.info("Downloading %d/%d comics", len(pending), len(urls))
+def download_comics(output_dir: str, by: Optional[str] = BY_DEFAULT, force: bool = False):
     with concurrent.futures.ThreadPoolExecutor() as executor:
         futures = []
-        for url, path in pending.items():
-            future = executor.submit(download, url=url, path=path)
+        total = get_total_comics()
+        for n in range(1, total + 1):
+            if n == 404:
+                continue
+
+            future = executor.submit(download_comic, output_dir=output_dir, by=by, n=n, force=force)
             futures.append(future)
-        
+            
         for future in concurrent.futures.as_completed(futures):
             future.result()
 
-        logger.debug("Downloaded %d comics", len(futures))
-    logger.debug("All %d comics have been downloaded", len(urls))
 
-
-def download(url: str, path: str):
-    logger.debug("Downloading %s -> %s", url, path)
-    try:
-        with open(path, "wb") as file:
-            file.write(urlopen(url).read())
-    except HTTPError as e:
-        logger.warning("Failed to download %s -> %s - %s", url, path, e)
+def download_comic(output_dir: str, n: int, force: bool = False, by: Optional[str] = BY_DEFAULT):
+    comic = get_comic(n)
+    if not comic:
         return
+    
+    url = comic['img']
+    path = get_output_path(output_dir=output_dir, comic=comic, by=by)
+
+    os.makedirs(output_dir, exist_ok=True)
+    if not os.path.exists(path) or force:
+        try:
+            logger.info("Downloading %s -> %s", url, path)
+            with open(path, "wb") as file:
+                file.write(urlopen(url).read())
+        except HTTPError as e:
+            if e.code == 404:
+                return
+            else:
+                logger.warning("Failed to download %s -> %s - %s", url, path, e)
     else:
-        logger.debug("Downloaded %s -> %s", url, path)
-
-
-def iter_download_urls(start: Optional[int] = None, end: Optional[int] = None) -> Iterator[str]:
-    url_cache = read_url_cache()
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        futures = {}
-        for intermediate_url in _iter_intermediate_urls(start=start, end=end):
-            if intermediate_url in url_cache:
-                yield url_cache[intermediate_url]
-            else:
-                future = executor.submit(_resolve_intermediate_url, intermediate_url)
-                futures[future] = intermediate_url
+        logger.debug("Skipping %s -> %s", url, path)
         
+    
+def get_output_path(output_dir: str, comic: dict, by: Optional[str] = BY_DEFAULT) -> str:
+    filename = get_output_filename(comic, by=by)
+    return os.path.join(output_dir, filename)
+
+
+def get_output_filename(comic: dict, by: Optional[str] = BY_DEFAULT) -> str:
+    path = comic['img']
+    ext = os.path.splitext(path)[1]
+
+    if by:
+        by = by.lower()
+        by = by.replace('-', '_')
+
+        value = comic[by]
+        if isinstance(value, str):
+            value = sanitize_filename(value)
+
+        filename = f"{value}{ext}"
+    else:
+        n = comic['num']
+        filename = f'{comic[n]}{ext}'
+    return filename
+
+
+def sanitize_filename(filename: str) -> str:
+    for t in ['\'', '"', ' ', '\t', '\n']:
+        filename = filename.replace(t, '')
+    
+    if '/' in filename:
+        filename = filename.replace('/', '-')
+    return filename
+
+
+def iter_comics() -> Iterator[dict]:
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        futures = []
+        total = get_total_comics()
+        for n in range(1, total + 1):
+            future = executor.submit(get_comic, n)
+            futures.append(future)
+
         for future in concurrent.futures.as_completed(futures):
-            intermediate_url = futures[future]
-            try:
-                download_url = future.result()
-            except HTTPError as e:
-                if e.code == 404:
-                    continue
-                raise HTTPError(f"Failed to resolve intermediate URL: {intermediate_url}") from e
-            else:
-                url_cache[intermediate_url] = download_url
-                yield download_url
-
-    update_url_cache(url_cache)
+            comic = future.result()
+            if comic:
+                yield comic
 
 
-def _iter_intermediate_urls(start: Optional[int] = None, end: Optional[int] = None) -> Iterator[str]:
-    total = get_total_comics()
+def get_comic(n: Optional[int] = None) -> Optional[dict]:
+    n = n or get_total_comics()
+    try:
+        meta = json.loads(urlopen(f"https://xkcd.com/{n}/info.0.json").read())
+    except HTTPError as e:
+        if e.code == 404:
+            return None
+        raise HTTPError(f"Failed to lookup comic #{n}") from e
+    return parse_comic(meta)
 
-    start = start or 1
-    end = end or total
-    end = min(end, total)
 
-    for i in range(start, end + 1):
-        yield f"https://xkcd.com/{i}/info.0.json"
-
-
-def _resolve_intermediate_url(url: str) -> str:
-    return json.loads(urlopen(url).read())["img"]
+def parse_comic(meta: dict) -> dict:
+    year = int(meta["year"])
+    month = int(meta["month"])
+    day = int(meta["day"])
+    meta.update({
+        'year': year,
+        'month': month,
+        'day': day,
+        'date': datetime.datetime(year=year, month=month, day=day),
+    })
+    return meta
 
 
 def get_total_comics() -> int:
-    data = json.loads(urlopen("https://xkcd.com/info.0.json").read())
-    return data["num"]
-
-
-def read_url_cache(path: Optional[str] = URL_CACHE_PATH) -> dict:
-    try:
-         with open(path, "r") as file:
-            return json.load(file)
-    except FileNotFoundError:
-        return {}
-    except json.decoder.JSONDecodeError:
-        os.unlink(path)
-        return {}
-
-
-def update_url_cache(cache: dict, path: Optional[str] = URL_CACHE_PATH):
-    directory = os.path.dirname(path)
-    if not os.path.exists(directory):
-        os.makedirs(directory, exist_ok=True)
-
-    with open(path, "w") as file:
-        json.dump(cache, file)
+    return json.loads(urlopen("https://xkcd.com/info.0.json").read())['num']
 
 
 if __name__ == "__main__":
+    from json import JSONEncoder
+
+    class JSONEncoder(JSONEncoder):
+        def default(self, o):
+            if dataclasses.is_dataclass(o):
+                return dataclasses.asdict(o)
+            elif isinstance(o, datetime.datetime):
+                return o.date().isoformat()
+            elif isinstance(o, datetime.date):
+                return o.isoformat()
+            else:
+                return super().default(o)
+
+
+    def main(output_dir: Optional[str] = None, by: Optional[str] = BY_DEFAULT, n: Optional[int] = None, force: bool = False):
+        if n:
+            if output_dir:
+                download_comic(output_dir=output_dir, by=by, n=n, force=force)
+            else:
+                comic = get_comic(n)
+                if comic:
+                    print_comic(comic)
+                else:
+                    sys.exit(1)
+        else:
+            if output_dir:
+                download_comics(output_dir=output_dir, by=by, force=force)
+            else:
+                for comic in iter_comics():
+                    print_comic(comic)
+
+    def print_comic(comic: dict):
+        blob = json.dumps(comic, indent=2, cls=JSONEncoder)
+        print(blob)
+
     def cli():
         import argparse
 
         logging.basicConfig(level=logging.INFO, format="%(message)s")
 
-        parser = argparse.ArgumentParser(description="Bulk download XKCD comics")
-        parser.add_argument(
-            "-o", "--output-dir", help="Output directory", required=True
-        )
-        parser.add_argument("-f", "--force", action="store_true", help="Force download")
-        parser.add_argument('-v', '--verbose', action='store_true', help='Verbose logging')
-        parser.add_argument('--start', type=int, help='Start comic (e.g. 500)')
-        parser.add_argument('--end', type=int, help='End comic (e.g. 1000)')
-
+        parser = argparse.ArgumentParser(description="Dependency-less XKCD client")
+        parser.add_argument("-v", "--verbose", action="store_true", help="Enable debug logging")
+        parser.add_argument('--output-dir', help='Download comics to this directory')
+        parser.add_argument('--force', action='store_true', help='Force download')
+        parser.add_argument('-n', '-num', type=int, help='Lookup a comic')
+        parser.add_argument('-k', '--by', dest='by', choices=BY, default=BY_DEFAULT, help='Key to use when naming downloaded files')
         args = parser.parse_args()
         kwargs = vars(args)
         if kwargs.pop("verbose"):
             logging.getLogger().setLevel(logging.DEBUG)
-
+        
         main(**kwargs)
-
+    
     cli()
