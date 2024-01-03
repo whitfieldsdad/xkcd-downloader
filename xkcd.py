@@ -130,11 +130,7 @@ if __name__ == "__main__":
     def main(output_dir: Optional[str], num: Optional[int], force: bool, download: bool, sparse_output: bool, latest: bool, limit: Optional[int]):
         client = Client(force=force)
 
-        if num is None or latest:
-            num = client.get_total_comics()
-
         output_dir = os.getcwd() if (download and output_dir is None) else output_dir
-
         if output_dir:
             if num:
                 client.download_comic(output_dir=output_dir, num=num)
