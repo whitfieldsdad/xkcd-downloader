@@ -87,6 +87,7 @@ def parse_comic_meta(meta: dict) -> dict:
 
 
 def download_file(url: str, path: str):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
     try:
         logger.info("Downloading %s -> %s", url, path)
         with open(path, "wb") as file:
