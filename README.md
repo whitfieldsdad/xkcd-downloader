@@ -10,7 +10,9 @@ This is a simple, dependendency-free Python script for downloading every XKCD co
 
 ## Usage
 
-### Latest comic
+### Command line interface
+
+#### Latest comic
 
 To list information about the latest comic:
 
@@ -30,7 +32,7 @@ To download the latest comic to a specific directory:
 curl https://raw.githubusercontent.com/whitfieldsdad/xkcd-downloader/main/xkcd.py -s | python3 - --latest -o xkcd/
 ```
 
-### Historical comics
+#### Historical comics
 
 To list information about every comic:
 
@@ -55,3 +57,59 @@ To download a specific comic (e.g. [#1234](https://xkcd.com/1234/)):
 ```bash
 curl https://raw.githubusercontent.com/whitfieldsdad/xkcd-downloader/main/xkcd.py -s | python3 - -n 1234 -o .
 ```
+
+### Python module
+
+To list information about the latest comic:
+
+```python
+from xkcd import Client
+
+client = Client()
+print(client.latest())
+```
+
+To download the latest comic to the current directory:
+
+```python
+from xkcd import Client
+
+client = Client()
+client.download_latest()
+```
+
+To download the latest comic to a specific directory:
+
+```python
+from xkcd import Client
+
+client = Client()
+client.download_latest(output_dir='xkcd/')
+```
+
+#### Historical comics
+
+To list information about every comic:
+
+```bash
+curl https://raw.githubusercontent.com/whitfieldsdad/xkcd-downloader/main/xkcd.py -s | python3 -
+```
+
+To download all comics to the current directory:
+
+```bash
+curl https://raw.githubusercontent.com/whitfieldsdad/xkcd-downloader/main/xkcd.py -s | python3 - --download
+```
+
+To download all comics to a specific directory:
+
+```bash
+curl https://raw.githubusercontent.com/whitfieldsdad/xkcd-downloader/main/xkcd.py -s | python3 - -o xkcd/
+```
+
+To download a specific comic (e.g. [#1234](https://xkcd.com/1234/)):
+
+```bash
+curl https://raw.githubusercontent.com/whitfieldsdad/xkcd-downloader/main/xkcd.py -s | python3 - -n 1234 -o .
+```
+
