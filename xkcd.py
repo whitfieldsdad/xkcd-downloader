@@ -44,14 +44,15 @@ class Client:
     
     def latest(self) -> dict:
         return self.get_latest_comic()
-
+    
     def get_latest_comic(self) -> dict:
         return self.get_comic()
 
     def get_total_comics(self) -> int:
         return json.loads(urlopen("https://xkcd.com/info.0.json").read())['num']
 
-    def download_comics(self, output_dir: str, limit: Optional[int] = None):
+    def download_comics(self, output_dir: Optional[str] = None, limit: Optional[int] = None):
+        output_dir = output_dir or os.getcwd()
         with concurrent.futures.ThreadPoolExecutor() as executor:
             futures = []
             for comic in self.iter_comics(limit=limit):
@@ -61,7 +62,7 @@ class Client:
             for future in concurrent.futures.as_completed(futures):
                 future.result()
 
-    def download_comic(self, output_dir: Optional[str] = None, num: Optional[str] = int):
+    def download_comic(self, output_dir: str, num: Optional[int] = None):
         comic = self.get_comic(num)
         if comic:
             path = self.get_output_path(output_dir, num)
@@ -128,19 +129,18 @@ if __name__ == "__main__":
 
     def main(output_dir: Optional[str], num: Optional[int], force: bool, download: bool, sparse_output: bool, latest: bool, limit: Optional[int]):
         client = Client(force=force)
-        
-        output_dir = os.getcwd() if download and output_dir is None else output_dir
+
+        if num is None or latest:
+            num = client.get_total_comics()
+
+        output_dir = os.getcwd() if (download and output_dir is None) else output_dir
+
         if output_dir:
-            if latest:
-                num = client.get_total_comics()
             if num:
                 client.download_comic(output_dir=output_dir, num=num)
             else:
                 client.download_comics(output_dir=output_dir, limit=limit)
         else:
-            if latest:
-                num = client.get_total_comics()
-
             if num:
                 comic = client.get_comic(num)
                 if comic:

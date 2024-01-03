@@ -60,6 +60,8 @@ curl https://raw.githubusercontent.com/whitfieldsdad/xkcd-downloader/main/xkcd.p
 
 ### Python module
 
+#### Latest comic
+
 To list information about the latest comic:
 
 ```python
@@ -91,25 +93,38 @@ client.download_latest(output_dir='xkcd/')
 
 To list information about every comic:
 
-```bash
-curl https://raw.githubusercontent.com/whitfieldsdad/xkcd-downloader/main/xkcd.py -s | python3 -
+```python
+from xkcd import Client
+
+client = Client()
+for comic in client.iter_comics():
+    print(comic)
 ```
 
 To download all comics to the current directory:
 
-```bash
-curl https://raw.githubusercontent.com/whitfieldsdad/xkcd-downloader/main/xkcd.py -s | python3 - --download
+```python
+from xkcd import Client
+
+client = Client()
+client.download_comics()
+
 ```
 
 To download all comics to a specific directory:
 
-```bash
-curl https://raw.githubusercontent.com/whitfieldsdad/xkcd-downloader/main/xkcd.py -s | python3 - -o xkcd/
+```python
+from xkcd import Client
+
+client = Client()
+client.download_comics(output_dir='xkcd/')
 ```
 
 To download a specific comic (e.g. [#1234](https://xkcd.com/1234/)):
 
-```bash
-curl https://raw.githubusercontent.com/whitfieldsdad/xkcd-downloader/main/xkcd.py -s | python3 - -n 1234 -o .
-```
+```python
+from xkcd import Client
 
+client = Client()
+client.download_comic(output_dir='xkcd', num=1234)
+```
