@@ -18,13 +18,6 @@ curl https://raw.githubusercontent.com/whitfieldsdad/xkcd-downloader/main/xkcd.p
 - Automatically cache comic metadata to avoid looking up the same information over and over again
 - Automatically inject [ISO-8601 dates](https://xkcd.com/1179/) into comic metadata to make it easier to sort and filter comics by date
 
-## Notes
-
-1. XKCD has a great [API](https://xkcd.com/json.html). You should use it instead of scraping the website.
-2. There is no comic [#404](https://xkcd.com/404/).
-
-![GitHub Copilot knows why](docs/images/404.png)
-
 ## Usage
 
 ### Command line
@@ -231,4 +224,52 @@ from xkcd import Client
 
 client = Client()
 client.download_comic(output_dir='xkcd', num=1234)
+```
+
+## Notes
+
+1. There is no comic [#404](https://xkcd.com/404/).
+
+![GitHub Copilot knows why](docs/images/404.png)
+
+2. XKCD has a great [API](https://xkcd.com/json.html). You should use it instead of scraping the website.
+3. The following information is available for each comic via the API:
+
+```bash
+curl https://xkcd.com/614/info.0.json --silent | jq 
+```
+
+```json
+{
+  "month": "7",
+  "num": 614,
+  "link": "",
+  "year": "2009",
+  "news": "",
+  "safe_title": "Woodpecker",
+  "transcript": "[[A man with a beret and a woman are standing on a boardwalk, leaning on a handrail.]]\nMan: A woodpecker!\n<<Pop pop pop>>\nWoman: Yup.\n\n[[The woodpecker is banging its head against a tree.]]\nWoman: He hatched about this time last year.\n<<Pop pop pop pop>>\n\n[[The woman walks away.  The man is still standing at the handrail.]]\n\nMan: ... woodpecker?\nMan: It's your birthday!\n\nMan: Did you know?\n\nMan: Did... did nobody tell you?\n\n[[The man stands, looking.]]\n\n[[The man walks away.]]\n\n[[There is a tree.]]\n\n[[The man approaches the tree with a present in a box, tied up with ribbon.]]\n\n[[The man sets the present down at the base of the tree and looks up.]]\n\n[[The man walks away.]]\n\n[[The present is sitting at the bottom of the tree.]]\n\n[[The woodpecker looks down at the present.]]\n\n[[The woodpecker sits on the present.]]\n\n[[The woodpecker pulls on the ribbon tying the present closed.]]\n\n((full width panel))\n[[The woodpecker is flying, with an electric drill dangling from its feet, held by the cord.]]\n\n{{Title text: If you don't have an extension cord I can get that too.  Because we're friends!  Right?}}",
+  "alt": "If you don't have an extension cord I can get that too.  Because we're friends!  Right?",
+  "img": "https://imgs.xkcd.com/comics/woodpecker.png",
+  "title": "Woodpecker",
+  "day": "24"
+}
+```
+
+4. The above information is lightly modified to make numbers numbers and to include a date in ISO-8601 format:
+
+```json
+{
+  "month": 7,
+  "num": 614,
+  "link": "",
+  "year": 2009,
+  "news": "",
+  "safe_title": "Woodpecker",
+  "transcript": "[[A man with a beret and a woman are standing on a boardwalk, leaning on a handrail.]]\nMan: A woodpecker!\n<<Pop pop pop>>\nWoman: Yup.\n\n[[The woodpecker is banging its head against a tree.]]\nWoman: He hatched about this time last year.\n<<Pop pop pop pop>>\n\n[[The woman walks away.  The man is still standing at the handrail.]]\n\nMan: ... woodpecker?\nMan: It's your birthday!\n\nMan: Did you know?\n\nMan: Did... did nobody tell you?\n\n[[The man stands, looking.]]\n\n[[The man walks away.]]\n\n[[There is a tree.]]\n\n[[The man approaches the tree with a present in a box, tied up with ribbon.]]\n\n[[The man sets the present down at the base of the tree and looks up.]]\n\n[[The man walks away.]]\n\n[[The present is sitting at the bottom of the tree.]]\n\n[[The woodpecker looks down at the present.]]\n\n[[The woodpecker sits on the present.]]\n\n[[The woodpecker pulls on the ribbon tying the present closed.]]\n\n((full width panel))\n[[The woodpecker is flying, with an electric drill dangling from its feet, held by the cord.]]\n\n{{Title text: If you don't have an extension cord I can get that too.  Because we're friends!  Right?}}",
+  "alt": "If you don't have an extension cord I can get that too.  Because we're friends!  Right?",
+  "img": "https://imgs.xkcd.com/comics/woodpecker.png",
+  "title": "Woodpecker",
+  "day": 24,
+  "date": "2009-07-24"
+}
 ```
