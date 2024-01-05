@@ -2,6 +2,19 @@
 
 This is a simple, dependendency-free Python script for downloading every XKCD comic via the author's [API](https://xkcd.com/json.html).
 
+- [tl;dr](#tldr)
+- [Features](#features)
+- [Usage](#usage)
+  - [Command line](#command-line)
+    - [Download all comics](#download-all-comics)
+    - [Download the latest comic](#download-the-latest-comic)
+    - [Get information about the latest comic](#get-information-about-the-latest-comic)
+    - [Historical comics](#historical-comics)
+  - [Python module](#python-module)
+    - [Latest comic](#latest-comic)
+    - [Historical comics](#historical-comics-1)
+- [Notes](#notes)
+
 ## tl;dr
 
 To download every comic to `xkcd/`:
@@ -58,19 +71,13 @@ curl https://raw.githubusercontent.com/whitfieldsdad/xkcd-downloader/main/xkcd.p
 
 #### Download all comics
 
-To download all comics to the current directory using `requests`:
+To download all comics to the current directory:
 
 ```bash
 curl https://raw.githubusercontent.com/whitfieldsdad/xkcd-downloader/main/xkcd.py -s | python3 - --download
 ```
 
-To download all comics to the current directory using `aria2c`:
-
-```bash
-curl https://raw.githubusercontent.com/whitfieldsdad/xkcd-downloader/main/xkcd.py -s | python3 - --download
-```
-
-To download all comics to a specific directory using `requests`:
+To download all comics to a specific directory:
 
 ```bash
 curl https://raw.githubusercontent.com/whitfieldsdad/xkcd-downloader/main/xkcd.py -s | python3 - -o xkcd/
