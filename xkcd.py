@@ -100,7 +100,7 @@ class Client:
         comic = self.get_comic(num)
         if comic:
             path = self.get_output_path(output_dir, num)
-            if not os.path.exists(path) or self.force:
+            if (not os.path.exists(path)) or self.force:
                 download_file(comic['img'], path)
 
     def download_latest(self, output_dir: Optional[str] = None):
