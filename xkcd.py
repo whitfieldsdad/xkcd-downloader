@@ -130,6 +130,7 @@ if __name__ == "__main__":
     def main(output_dir: Optional[str], num: Optional[int], force: bool, download: bool, sparse_output: bool, latest: bool, limit: Optional[int]):
         client = Client(force=force)
 
+        num = num if num else (client.get_total_comics() if latest else None)
         output_dir = os.getcwd() if (download and output_dir is None) else output_dir
         if output_dir:
             if num:
@@ -172,7 +173,7 @@ if __name__ == "__main__":
         parser.add_argument('-n', '--num', type=int, help='Comic # (e.g. 1234)')
         parser.add_argument('--latest', action='store_true', help='Get latest comic')
         parser.add_argument('--download', action='store_true', help='Download the comic')
-        parser.add_argument('--sparse-output', action='store_true', help='Drop empty JSON fields')
+        parser.add_argument('--sparse-output', action='store_true', help='Drop empty JSON fields when listing comic metadata')
         parser.add_argument('--limit', type=int, help='Limit number of comics to download')
 
         args = parser.parse_args()
