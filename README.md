@@ -13,6 +13,15 @@ This is a simple, dependendency-free Python script for downloading every XKCD co
 
 ## Usage
 
+### tl;dr
+
+To download every comic to `xkcd/`:
+
+```bash
+mkdir -p xkcd
+curl https://raw.githubusercontent.com/whitfieldsdad/xkcd-downloader/main/xkcd.py -s | python3 - -o xkcd/
+```
+
 ### Command line
 
 The following options are available:
