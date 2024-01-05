@@ -41,7 +41,9 @@ class Client:
             return parse_comic_meta(meta)
 
     def _get_comic(self, num: int) -> Optional[dict]:
-        if self.cache_dir:
+        if num == 404:
+            return None # there is no comic #404 because 
+        elif self.cache_dir:
             meta = self._read_comic_metadata_from_cache(num)
             if meta:
                 logger.debug("Using cached metadata for comic #%s", num)

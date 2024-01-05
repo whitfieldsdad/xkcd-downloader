@@ -2,7 +2,14 @@
 
 This is a simple, dependendency-free Python script for downloading every XKCD comic via the author's [API](https://xkcd.com/json.html).
 
-![XKCD #350](docs/images/network.png)
+## tl;dr
+
+To download every comic to `xkcd/`:
+
+```bash
+mkdir -p xkcd
+curl https://raw.githubusercontent.com/whitfieldsdad/xkcd-downloader/main/xkcd.py -s | python3 - -o xkcd/
+```
 
 ## Features
 
@@ -11,16 +18,14 @@ This is a simple, dependendency-free Python script for downloading every XKCD co
 - Automatically cache comic metadata to avoid looking up the same information over and over again
 - Automatically inject [ISO-8601 dates](https://xkcd.com/1179/) into comic metadata to make it easier to sort and filter comics by date
 
+## Notes
+
+1. XKCD has a great [API](https://xkcd.com/json.html). You should use it instead of scraping the website.
+2. There is no comic [#404](https://xkcd.com/404/).
+
+![GitHub Copilot knows why](docs/images/404.png)
+
 ## Usage
-
-### tl;dr
-
-To download every comic to `xkcd/`:
-
-```bash
-mkdir -p xkcd
-curl https://raw.githubusercontent.com/whitfieldsdad/xkcd-downloader/main/xkcd.py -s | python3 - -o xkcd/
-```
 
 ### Command line
 
