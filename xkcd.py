@@ -5,19 +5,21 @@ import sys
 from typing import Any, Iterator, Optional
 from urllib.error import HTTPError
 from urllib.request import urlopen
-
 import logging
 import datetime
 import concurrent.futures
+import tempfile
 import json
-import os
 
 logger = logging.getLogger(__name__)
+
+DEFAULT_CACHE_DIR = os.path.join(tempfile.gettempdir(), "9e3f0691-47d1-483f-b434-0816e0ff8629")
 
 
 @dataclasses.dataclass()
 class Client:
     force: bool = False
+    cache_dir: Optional[str] = DEFAULT_CACHE_DIR
 
     def iter_comics(self, limit: Optional[int] = None) -> Iterator[dict]:
         with concurrent.futures.ThreadPoolExecutor() as executor:
@@ -34,14 +36,44 @@ class Client:
 
     def get_comic(self, num: Optional[int] = None) -> Optional[dict]:
         num = num or self.get_total_comics()
+        meta = self._get_comic(num)
+        if meta:
+            return parse_comic_meta(meta)
+
+    def _get_comic(self, num: int) -> Optional[dict]:
+        if self.cache_dir:
+            meta = self._read_comic_metadata_from_cache(num)
+            if meta:
+                logger.debug("Using cached metadata for comic #%s", num)
+            else:
+                meta = self._lookup_comic_metadata(num)
+                if meta:
+                    self._write_comic_metadata_to_cache(num, meta)
+        else:
+            meta = self._lookup_comic_metadata(num)
+        return meta
+    
+    def _lookup_comic_metadata(self, num: int) -> dict:
+        logger.info("Downloading metadata for comic #%s", num)
         try:
-            meta = json.loads(urlopen(f"https://xkcd.com/{num}/info.0.json").read())
+            return json.loads(urlopen(f"https://xkcd.com/{num}/info.0.json").read())
         except HTTPError as e:
             if e.code == 404:
                 return None
             raise HTTPError(f"Failed to lookup comic #{num}") from e
-        return parse_comic_meta(meta)
+
+    def _read_comic_metadata_from_cache(self, num: int) -> Optional[str]:
+        path = _get_cached_comic_metadata_path(self.cache_dir, num)
+        if os.path.exists(path):
+            with open(path, "r") as file:
+                return json.load(file)
     
+    def _write_comic_metadata_to_cache(self, num: int, meta: dict):
+        path = _get_cached_comic_metadata_path(self.cache_dir, num)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w") as file:
+            json.dump(meta, file)
+
     def latest(self) -> dict:
         return self.get_latest_comic()
     
@@ -111,6 +143,10 @@ def download_file(url: str, path: str):
             return
         else:
             logger.warning("Failed to download %s -> %s - %s", url, path, e)
+
+
+def _get_cached_comic_metadata_path(cache_dir: str, num: int) -> str:
+    return os.path.join(cache_dir, f"{num}.json")
 
 
 if __name__ == "__main__":

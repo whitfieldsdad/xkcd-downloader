@@ -1,6 +1,6 @@
 # Yet another XKCD downloader
 
-This is a simple, dependendency-free Python script for downloading every XKCD comic.
+This is a simple, dependendency-free Python script for downloading every XKCD comic via the author's [API](https://xkcd.com/json.html).
 
 ![XKCD #350](docs/images/network.png)
 
@@ -8,6 +8,8 @@ This is a simple, dependendency-free Python script for downloading every XKCD co
 
 - List information about comics in JSONL format
 - Download the latest comic or all comics to a directory
+- Automatically cache comic metadata to avoid looking up the same information over and over again
+- Automatically inject [ISO-8601 dates](https://xkcd.com/1179/) into comic metadata to make it easier to sort and filter comics by date
 
 ## Usage
 
