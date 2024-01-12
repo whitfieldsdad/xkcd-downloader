@@ -145,6 +145,8 @@ def download_file(url: str, path: str):
             return
         else:
             logger.warning("Failed to download %s -> %s - %s", url, path, e)
+            if os.path.exists(path):
+                os.remove(path)
 
 
 def _get_cached_comic_metadata_path(cache_dir: str, num: int) -> str:

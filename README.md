@@ -2,6 +2,8 @@
 
 This is a simple, dependendency-free Python script for downloading every XKCD comic via the author's [API](https://xkcd.com/json.html).
 
+![Viruses so far have been really disappointing on the 'disable the internet' front, and time is running out.  When Linux/Mac win in a decade or so the game will be over.](data/images/350.png)
+
 ## Table of contents
 
 - [tl;dr](#tldr)
