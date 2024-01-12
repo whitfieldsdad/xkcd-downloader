@@ -166,7 +166,7 @@ To list all download URLs:
 curl https://raw.githubusercontent.com/whitfieldsdad/xkcd-downloader/main/xkcd.py -s | python3 - | jq -r '.img' | sort | uniq
 ```
 
-### Python module
+### Python
 
 #### Lookup the latest comic
 
@@ -179,6 +179,10 @@ client = Client()
 print(client.latest())
 ```
 
+```text
+{'month': 1, 'num': 2879, 'link': '', 'year': 2024, 'news': '', 'safe_title': 'Like This One', 'transcript': '', 'alt': "A lot of sentences undergo startling shifts in mood if you add 'like this one' to the end, but high on the list is 'I'm a neurologist studying dreams.'", 'img': 'https://imgs.xkcd.com/comics/like_this_one.png', 'title': 'Like This One', 'day': 10, 'date': datetime.date(2024, 1, 10)}
+```
+
 #### Download the latest comic
 
 To download the latest comic to the current directory:
@@ -186,8 +190,10 @@ To download the latest comic to the current directory:
 ```python
 from xkcd import Client
 
+import os
+
 client = Client()
-client.download_latest()
+client.download_latest(output_dir=os.getcwd())
 ```
 
 To download the latest comic to a specific directory:
@@ -207,7 +213,9 @@ To list information about historical comic:
 from xkcd import Client
 
 client = Client()
-for comic in client.iter_comics():
+
+comics = client.iter_comics()
+for comic in comics:
     print(comic)
 ```
 
