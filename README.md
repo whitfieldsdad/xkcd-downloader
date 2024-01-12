@@ -2,6 +2,8 @@
 
 This is a simple, dependendency-free Python script for downloading every XKCD comic via the author's [API](https://xkcd.com/json.html).
 
+## Table of contents
+
 - [tl;dr](#tldr)
 - [Features](#features)
 - [Usage](#usage)
@@ -10,9 +12,11 @@ This is a simple, dependendency-free Python script for downloading every XKCD co
     - [Download the latest comic](#download-the-latest-comic)
     - [Get information about the latest comic](#get-information-about-the-latest-comic)
     - [Historical comics](#historical-comics)
-  - [Python module](#python-module)
-    - [Latest comic](#latest-comic)
-    - [Historical comics](#historical-comics-1)
+  - [Python](#python)
+    - [Lookup the latest comic](#lookup-the-latest-comic)
+    - [Download the latest comic](#download-the-latest-comic)
+    - [Lookup historical comics](#lookup-historical-comics)
+    - [Download historical comics](#download-historical-comics)
 - [Notes](#notes)
 
 ## tl;dr
@@ -164,9 +168,9 @@ curl https://raw.githubusercontent.com/whitfieldsdad/xkcd-downloader/main/xkcd.p
 
 ### Python module
 
-#### Latest comic
+#### Lookup the latest comic
 
-To list information about the latest comic:
+To lookup information about the latest comic:
 
 ```python
 from xkcd import Client
@@ -174,6 +178,8 @@ from xkcd import Client
 client = Client()
 print(client.latest())
 ```
+
+#### Download the latest comic
 
 To download the latest comic to the current directory:
 
@@ -193,9 +199,9 @@ client = Client()
 client.download_latest(output_dir='xkcd/')
 ```
 
-#### Historical comics
+#### Lookup historical comics
 
-To list information about every comic:
+To list information about historical comic:
 
 ```python
 from xkcd import Client
@@ -205,6 +211,8 @@ for comic in client.iter_comics():
     print(comic)
 ```
 
+#### Download historical comics
+
 To download all comics to the current directory:
 
 ```python
@@ -212,7 +220,6 @@ from xkcd import Client
 
 client = Client()
 client.download_comics()
-
 ```
 
 To download all comics to a specific directory:

@@ -56,7 +56,7 @@ class Client:
         return meta
     
     def _lookup_comic_metadata(self, num: int) -> dict:
-        logger.info("Downloading metadata for comic #%s", num)
+        logger.debug("Downloading metadata for comic #%s", num)
         try:
             return json.loads(urlopen(f"https://xkcd.com/{num}/info.0.json").read())
         except HTTPError as e:
@@ -137,7 +137,7 @@ def parse_comic_meta(meta: dict) -> dict:
 def download_file(url: str, path: str):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     try:
-        logger.info("Downloading %s -> %s", url, path)
+        logger.debug("Downloading %s -> %s", url, path)
         with open(path, "wb") as file:
             file.write(urlopen(url).read())
     except HTTPError as e:
