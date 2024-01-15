@@ -33,7 +33,7 @@ curl https://raw.githubusercontent.com/whitfieldsdad/xkcd-downloader/main/xkcd.p
 ## Features
 
 - List information about comics in JSONL format
-- Download the latest comic or all comics to a directory
+- Download the latest comic or all comics to a directory of your choice
 - Automatically cache comic metadata to avoid looking up the same information over and over again
 - Automatically inject [ISO-8601 dates](https://xkcd.com/1179/) into comic metadata to make it easier to sort and filter comics by date
 
@@ -48,7 +48,7 @@ python3 xkcd.py --help
 ```
 
 ```text
-usage: xkcd.py [-h] [-v] [-o OUTPUT_DIR] [-f] [-n NUM] [--latest] [--download] [--sparse-output] [--limit LIMIT]
+usage: xkcd.py [-h] [-v] [-o OUTPUT_DIR] [-c CACHE_DIR] [-f] [-n NUM] [--filename-policy {safe_title,filename,alt,date}] [--latest] [--download] [--sparse-output] [--limit LIMIT]
 
 Dependency-less XKCD client
 
@@ -57,8 +57,12 @@ optional arguments:
   -v, --verbose         Enable debug logging
   -o OUTPUT_DIR, --output-dir OUTPUT_DIR
                         If provided, download comics to this directory
+  -c CACHE_DIR, --cache-dir CACHE_DIR
+                        If provided, cache comic metadata in this directory
   -f, --force           Force re-download
   -n NUM, --num NUM     Comic # (e.g. 1234)
+  --filename-policy {safe_title,filename,alt,date}, -p {safe_title,filename,alt,date}
+                        Filename policy
   --latest              Get latest comic
   --download            Download the comic
   --sparse-output       Drop empty JSON fields when listing comic metadata

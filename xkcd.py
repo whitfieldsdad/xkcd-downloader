@@ -10,14 +10,31 @@ import datetime
 import concurrent.futures
 import tempfile
 import json
+from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_CACHE_DIR = os.path.join(tempfile.gettempdir(), "9e3f0691-47d1-483f-b434-0816e0ff8629")
 
+# File naming policies
+SAFE_TITLE = "safe_title"
+FILENAME = "filename"
+ALT = "alt"
+DATE = "date"
+NUM = "num"
 
-@dataclasses.dataclass()
+FILENAME_POLICIES = [
+    SAFE_TITLE,
+    FILENAME,
+    ALT,
+    DATE,
+]
+DEFAULT_FILENAME_POLICY = SAFE_TITLE
+
+
+@dataclass()
 class Client:
+    filename_policy: str = DEFAULT_FILENAME_POLICY
     force: bool = False
     cache_dir: Optional[str] = DEFAULT_CACHE_DIR
 
@@ -111,10 +128,22 @@ class Client:
         comic = self.get_comic(num)
         if not comic:
             raise KeyError(f"Comic #{num} not found")
+        
+        # Determine how to name the output file
+        filename = os.path.basename(comic['img'])
+        ext = os.path.splitext(filename)[-1]
+        
+        if self.filename_policy == SAFE_TITLE:
+            filename = f'{comic["safe_title"].rstrip(".")}{ext}'
+        elif self.filename_policy == NUM:
+            filename = f'{comic["num"]}{ext}'
+        elif self.filename_policy == ALT:
+            filename = f'{comic["alt"].rstrip(".")}{ext}'
+        elif self.filename_policy == DATE:
+            filename = f'{comic["date"]}{ext}'
+        elif self.filename_policy != FILENAME:
+            raise ValueError(f"Unknown filename policy: {self.filename_policy}")
 
-        img = comic['img']
-        ext = os.path.splitext(img)[1]
-        filename = f'{num}{ext}'
         return os.path.join(output_dir, filename)
 
     def __iter__(self):
@@ -167,9 +196,12 @@ if __name__ == "__main__":
             else:
                 return super().default(o)
 
-    def main(output_dir: Optional[str], num: Optional[int], force: bool, download: bool, sparse_output: bool, latest: bool, limit: Optional[int]):
-        client = Client(force=force)
-
+    def main(output_dir: Optional[str], cache_dir: Optional[str], filename_policy: str, num: Optional[int], force: bool, download: bool, sparse_output: bool, latest: bool, limit: Optional[int]):
+        client = Client(
+            force=force,
+            filename_policy=filename_policy,
+            cache_dir=cache_dir,
+        )
         num = num if num else (client.get_total_comics() if latest else None)
         output_dir = os.getcwd() if (download and output_dir is None) else output_dir
         if output_dir:
@@ -209,8 +241,10 @@ if __name__ == "__main__":
         parser = argparse.ArgumentParser(description="Dependency-less XKCD client")
         parser.add_argument("-v", "--verbose", action="store_true", help="Enable debug logging")
         parser.add_argument('-o', '--output-dir', dest='output_dir', help='If provided, download comics to this directory')
+        parser.add_argument('-c', '--cache-dir', dest='cache_dir', help='If provided, cache comic metadata in this directory')
         parser.add_argument('-f', '--force', action='store_true', help='Force re-download')
         parser.add_argument('-n', '--num', type=int, help='Comic # (e.g. 1234)')
+        parser.add_argument('--filename-policy', '-p', choices=FILENAME_POLICIES, default=DEFAULT_FILENAME_POLICY, help='Filename policy')
         parser.add_argument('--latest', action='store_true', help='Get latest comic')
         parser.add_argument('--download', action='store_true', help='Download the comic')
         parser.add_argument('--sparse-output', action='store_true', help='Drop empty JSON fields when listing comic metadata')
