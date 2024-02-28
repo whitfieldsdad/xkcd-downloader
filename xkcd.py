@@ -1,3 +1,4 @@
+import copy
 import dataclasses
 import itertools
 import os
@@ -144,6 +145,7 @@ class Client:
         elif self.filename_policy != FILENAME:
             raise ValueError(f"Unknown filename policy: {self.filename_policy}")
 
+        filename = filename.replace('/', '-')
         return os.path.join(output_dir, filename)
 
     def __iter__(self):
@@ -166,7 +168,7 @@ def parse_comic_meta(meta: dict) -> dict:
 def download_file(url: str, path: str):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     try:
-        logger.debug("Downloading %s -> %s", url, path)
+        logger.info("Downloading %s -> %s", url, path)
         with open(path, "wb") as file:
             file.write(urlopen(url).read())
     except HTTPError as e:
